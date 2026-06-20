@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>미국 주식 분석 도구</title>
+<style>
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface2: #263348;
+  --border: #334155;
+  --text: #f1f5f9;
+  --muted: #64748b;
+  --primary: #3b82f6;
+  --success: #22c55e;
+  --warning: #eab308;
+  --danger: #ef4444;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+
+/* Header */
+header { background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); border-bottom: 1px solid var(--border); padding: 20px 32px; display: flex; align-items: center; gap: 16px; }
+.logo { font-size: 28px; }
+.header-text h1 { font-size: 20px; font-weight: 700; color: #93c5fd; }
+.header-text p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* Main layout */
+main { max-width: 1400px; margin: 0 auto; padding: 24px 20px; }
+
+/* Section titles */
+.section-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+
+/* Strategy grid */
+.strategy-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+@media (max-width: 900px) { .strategy-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .strategy-grid { grid-template-columns: 1fr; } }
+
+.strategy-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all .2s ease;
+  position: relative;
+  overflow: hidden;
+}
+.strategy-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+.strategy-card.selected { box-shadow: 0 0 0 2px var(--card-color), 0 8px 24px rgba(0,0,0,.4); background: var(--surface2); }
+.strategy-card.selected::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--card-color); }
+
+.card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.card-name { font-size: 15px; font-weight: 700; color: var(--card-color); }
+.card-badge { font-size: 10px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,.08); color: var(--muted); white-space: nowrap; }
+.card-kor { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+.card-desc { font-size: 12px; color: #94a3b8; line-height: 1.5; margin-bottom: 10px; }
+.card-criteria { list-style: none; }
+.card-criteria li { font-size: 11px; color: var(--muted); padding: 2px 0; }
+.card-criteria li::before { content: '•  '; color: var(--card-color); }
+
+/* Options bar */
+.options-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.opt-group { display: flex; align-items: center; gap: 8px; }
+.opt-group label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.opt-group input[type=number], .opt-group select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 6px 10px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color .2s;
+}
+.opt-group input[type=number] { width: 72px; }
+.opt-group select { min-width: 140px; }
+.opt-group input:focus, .opt-group select:focus { border-color: var(--primary); }
+.toggle-label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: var(--muted); }
+.toggle-label input { accent-color: var(--primary); width: 14px; height: 14px; cursor: pointer; }
+.search-btn {
+  margin-left: auto;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s, transform .1s;
+}
+.search-btn:hover { background: #2563eb; }
+.search-btn:active { transform: scale(.97); }
+.search-btn:disabled { background: var(--muted); cursor: not-allowed; }
+
+/* Progress */
+.progress-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  display: none;
+}
+.progress-track { background: var(--border); border-radius: 999px; height: 8px; overflow: hidden; margin-bottom: 10px; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #06b6d4); border-radius: 999px; transition: width .4s ease; width: 0%; }
+.progress-info { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.progress-ticker { font-family: monospace; color: #93c5fd; }
+.found-badge { background: rgba(34,197,94,.15); color: var(--success); padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+
+/* Results */
+.results-section { display: none; }
+.results-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.results-header h2 { font-size: 16px; font-weight: 700; }
+.result-count { background: var(--primary); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 999px; }
+.strategy-label { font-size: 12px; color: var(--muted); }
+
+.table-wrapper { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead { background: var(--surface2); }
+thead th {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+thead th:hover { color: var(--text); }
+thead th.sorted { color: var(--primary); }
+thead th .sort-arrow { font-size: 10px; margin-left: 3px; }
+tbody tr { border-top: 1px solid var(--border); cursor: pointer; transition: background .15s; }
+tbody tr:hover { background: var(--surface); }
+tbody td { padding: 10px 12px; white-space: nowrap; }
+.ticker-cell { font-weight: 700; font-family: monospace; font-size: 14px; color: #93c5fd; }
+.name-cell { color: var(--text); max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+.sector-cell { color: var(--muted); font-size: 12px; }
+.met-cell { color: var(--muted); font-size: 12px; text-align: center; }
+.num-cell { text-align: right; color: #cbd5e1; }
+.na { color: var(--muted); }
+
+/* Score bar */
+.score-cell { display: flex; align-items: center; gap: 8px; min-width: 110px; }
+.score-bar-bg { flex: 1; background: var(--border); border-radius: 999px; height: 6px; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 999px; transition: width .6s ease; }
+.score-text { font-size: 12px; font-weight: 700; min-width: 34px; text-align: right; }
+
+/* Modal */
+.modal { display: none; position: fixed; inset: 0; z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.7); }
+.modal-dialog {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  z-index: 1;
+}
+.modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; line-height: 1; }
+.modal-close:hover { color: var(--text); }
+.detail-ticker { font-size: 26px; font-weight: 800; color: #93c5fd; font-family: monospace; }
+.detail-name { font-size: 14px; color: var(--text); margin: 4px 0 2px; }
+.detail-meta { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+.detail-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+.stat-card { background: var(--bg); border-radius: 8px; padding: 10px 12px; }
+.stat-label { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.stat-value { font-size: 16px; font-weight: 700; }
+.modal h3 { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+.criteria-table { width: 100%; border-collapse: collapse; }
+.criteria-table th { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+.criteria-table td { padding: 9px 10px; border-bottom: 1px solid rgba(51,65,85,.5); font-size: 13px; }
+.criteria-table tr:last-child td { border-bottom: none; }
+.pass { color: var(--success); font-weight: 600; }
+.fail { color: var(--danger); }
+.na-label { color: var(--muted); }
+
+/* Notice */
+.notice { margin-top: 28px; text-align: center; font-size: 11px; color: var(--muted); padding: 10px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">📈</div>
+  <div class="header-text">
+    <h1>미국 주식 분석 도구</h1>
+    <p>유명 투자자 기준 기반 S&P 500 실시간 스크리너</p>
+  </div>
+</header>
+
+<main>
+  <div class="section-title">투자 전략 선택</div>
+  <div class="strategy-grid" id="strategyGrid"></div>
+
+  <div class="options-bar">
+    <div class="opt-group">
+      <label>표시 종목 수</label>
+      <input type="number" id="topN" value="15" min="5" max="50">
+    </div>
+    <div class="opt-group">
+      <label>섹터 필터</label>
+      <select id="sector">
+        <option value="">전체 섹터</option>
+        <option>Technology</option>
+        <option>Healthcare</option>
+        <option>Financials</option>
+        <option>Consumer Discretionary</option>
+        <option>Industrials</option>
+        <option>Communication Services</option>
+        <option>Consumer Staples</option>
+        <option>Energy</option>
+        <option>Utilities</option>
+        <option>Real Estate</option>
+        <option>Materials</option>
+      </select>
+    </div>
+    <label class="toggle-label">
+      <input type="checkbox" id="fullScan">
+      S&P 500 전체 스캔 (느림)
+    </label>
+    <button class="search-btn" id="searchBtn" onclick="startScreening()">검색 시작</button>
+  </div>
+
+  <div class="progress-section" id="progressSection">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-info">
+      <span id="progressLabel">분석 준비 중...</span>
+      <span class="found-badge" id="foundBadge">0개 발견</span>
+    </div>
+  </div>
+
+  <div class="results-section" id="resultsSection">
+    <div class="results-header">
+      <h2>스크리닝 결과</h2>
+      <span class="result-count" id="resultCount">0</span>
+      <span class="strategy-label" id="strategyLabel"></span>
+    </div>
+    <div class="table-wrapper">
+      <table id="resultsTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>티커</th>
+            <th>기업명</th>
+            <th>섹터</th>
+            <th onclick="sortBy('score')" class="sorted">점수 <span class="sort-arrow">▼</span></th>
+            <th>충족</th>
+            <th onclick="sortBy('price')">현재가 <span class="sort-arrow"></span></th>
+            <th onclick="sortBy('market_cap')">시총 <span class="sort-arrow"></span></th>
+            <th onclick="sortBy('pe')">PER <span class="sort-arrow"></span></th>
+            <th onclick="sortBy('pb')">PBR <span class="sort-arrow"></span></th>
+            <th onclick="sortBy('roe')">ROE <span class="sort-arrow"></span></th>
+            <th onclick="sortBy('debt_to_equity')">D/E% <span class="sort-arrow"></span></th>
+            <th onclick="sortBy('profit_margins')">순이익률 <span class="sort-arrow"></span></th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="notice">※ 본 서비스는 재무 데이터를 기반으로 한 스크리닝 도구이며, 투자 조언·투자 권유·매매 추천이 아닙니다. 제공되는 정보는 참고용이며 투자 결과에 대한 책임은 전적으로 이용자 본인에게 있습니다. 본 서비스는 자본시장법상 투자자문업과 무관합니다.</div>
+</main>
+
+<div class="modal" id="detailModal">
+  <div class="modal-backdrop" onclick="closeModal()"></div>
+  <div class="modal-dialog">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+const STRATEGIES = {
+  buffett:    { name: "Warren Buffett",    kor: "워런 버핏",    color: "#f59e0b", style: "Quality Value",   desc: "경제적 해자를 가진 우량 기업을 합리적 가격에 매수", criteria: ["ROE ≥ 15%", "PER ≤ 25", "PBR ≤ 3.0", "부채비율 ≤ 50%", "순이익률 ≥ 10%"] },
+  graham:     { name: "Benjamin Graham",   kor: "벤자민 그레이엄", color: "#10b981", style: "Deep Value",      desc: "내재가치 대비 충분한 안전마진 확보", criteria: ["PER ≤ 15", "PBR ≤ 1.5", "유동비율 ≥ 2.0", "배당수익률 ≥ 2%", "ROE ≥ 8%"] },
+  lynch:      { name: "Peter Lynch",       kor: "피터 린치",    color: "#06b6d4", style: "GARP",            desc: "합리적 가격의 성장주 발굴 (Growth at Reasonable Price)", criteria: ["PEG ≤ 1.0 (핵심)", "EPS성장률 ≥ 15%", "ROE ≥ 15%", "부채비율 ≤ 35%"] },
+  greenblatt: { name: "Joel Greenblatt",   kor: "조엘 그린블라트", color: "#8b5cf6", style: "Magic Formula",  desc: "높은 이익수익률 + 높은 자본이익률 조합", criteria: ["EV/EBITDA ≤ 12", "ROE ≥ 20%", "PER ≤ 20", "순이익률 ≥ 15%"] },
+  fisher:     { name: "Philip Fisher",     kor: "필립 피셔",    color: "#3b82f6", style: "Growth",          desc: "탁월한 성장 잠재력을 가진 기업에 장기 투자", criteria: ["매출성장률 ≥ 10%", "EPS성장률 ≥ 10%", "순이익률 ≥ 10%", "ROE ≥ 15%"] },
+  all:        { name: "전체 전략 비교",     kor: "5개 전략 종합", color: "#f97316", style: "All Strategies", desc: "5개 전략을 모두 실행하여 종합 점수로 비교 분석", criteria: ["버핏 + 그레이엄 + 린치", "그린블라트 + 피셔 통합", "종합 평균 점수로 정렬"] },
+};
+
+let selectedStrategy = "buffett";
+let currentSort = { col: "score", asc: false };
+let allResults = [];
+let activeES = null;
+
+// Build strategy cards
+function buildCards() {
+  const grid = document.getElementById("strategyGrid");
+  Object.entries(STRATEGIES).forEach(([key, s]) => {
+    const card = document.createElement("div");
+    card.className = "strategy-card" + (key === selectedStrategy ? " selected" : "");
+    card.dataset.key = key;
+    card.style.setProperty("--card-color", s.color);
+    card.onclick = () => selectStrategy(key);
+    card.innerHTML = `
+      <div class="card-header">
+        <span class="card-name">${s.name}</span>
+        <span class="card-badge">${s.style}</span>
+      </div>
+      <div class="card-kor">${s.kor}</div>
+      <div class="card-desc">${s.desc}</div>
+      <ul class="card-criteria">
+        ${s.criteria.map(c => `<li>${c}</li>`).join("")}
+      </ul>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function selectStrategy(key) {
+  selectedStrategy = key;
+  document.querySelectorAll(".strategy-card").forEach(el => {
+    const s = STRATEGIES[el.dataset.key];
+    el.style.setProperty("--card-color", s.color);
+    el.classList.toggle("selected", el.dataset.key === key);
+  });
+}
+
+function startScreening() {
+  if (activeES) { activeES.close(); activeES = null; }
+
+  const params = new URLSearchParams({
+    strategy: selectedStrategy,
+    top: document.getElementById("topN").value,
+    sector: document.getElementById("sector").value,
+    full: document.getElementById("fullScan").checked,
+  });
+
+  document.getElementById("searchBtn").disabled = true;
+  document.getElementById("searchBtn").textContent = "검색 중...";
+  document.getElementById("resultsSection").style.display = "none";
+  document.getElementById("progressSection").style.display = "block";
+  document.getElementById("progressFill").style.width = "0%";
+  document.getElementById("foundBadge").textContent = "0개 발견";
+  document.getElementById("progressLabel").textContent = "분석 준비 중...";
+
+  const es = new EventSource("/screen?" + params);
+  activeES = es;
+
+  es.onmessage = e => {
+    const data = JSON.parse(e.data);
+    if (data.type === "progress") {
+      document.getElementById("progressFill").style.width = data.pct + "%";
+      document.getElementById("progressLabel").innerHTML =
+        `<span style="color:#94a3b8">${data.step_label || ""}</span>  <span class="progress-ticker">${data.ticker}</span>  분석 중... (${data.pct}%)`;
+      document.getElementById("foundBadge").textContent = data.found + "개 발견";
+    } else if (data.type === "done") {
+      es.close(); activeES = null;
+      onDone(data);
+    } else if (data.type === "error") {
+      es.close(); activeES = null;
+      alert("오류: " + data.message);
+      resetBtn();
+    }
+  };
+  es.onerror = () => { es.close(); activeES = null; resetBtn(); };
+}
+
+function onDone(data) {
+  allResults = data.results || [];
+  document.getElementById("progressSection").style.display = "none";
+  document.getElementById("resultsSection").style.display = "block";
+  document.getElementById("resultCount").textContent = allResults.length + "개";
+  const s = STRATEGIES[data.strategy] || {};
+  document.getElementById("strategyLabel").textContent = s.name + " (" + (s.style || "") + ")";
+  currentSort = { col: "score", asc: false };
+  renderTable(allResults);
+  resetBtn();
+}
+
+function resetBtn() {
+  document.getElementById("searchBtn").disabled = false;
+  document.getElementById("searchBtn").textContent = "검색 시작";
+}
+
+// ---------- Table ----------
+const COL_KEYS = [null, "ticker", "name", "sector", "score", "met_count", "price", "market_cap", "pe", "pb", "roe", "debt_to_equity", "profit_margins"];
+
+function sortBy(col) {
+  const header = document.querySelector(`thead th[onclick="sortBy('${col}')"]`);
+  document.querySelectorAll("thead th").forEach(th => {
+    th.classList.remove("sorted");
+    const arrow = th.querySelector(".sort-arrow");
+    if (arrow) arrow.textContent = "";
+  });
+  if (currentSort.col === col) {
+    currentSort.asc = !currentSort.asc;
+  } else {
+    currentSort.col = col;
+    currentSort.asc = false;
+  }
+  if (header) {
+    header.classList.add("sorted");
+    const arrow = header.querySelector(".sort-arrow");
+    if (arrow) arrow.textContent = currentSort.asc ? " ▲" : " ▼";
+  }
+  const sorted = [...allResults].sort((a, b) => {
+    const av = a[col] ?? (currentSort.asc ? Infinity : -Infinity);
+    const bv = b[col] ?? (currentSort.asc ? Infinity : -Infinity);
+    return currentSort.asc ? av - bv : bv - av;
+  });
+  renderTable(sorted);
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById("resultsBody");
+  tbody.innerHTML = "";
+  rows.forEach((r, i) => {
+    const tr = document.createElement("tr");
+    tr.onclick = () => showDetail(r);
+    const scoreColor = r.score >= 80 ? "#22c55e" : r.score >= 60 ? "#eab308" : "#94a3b8";
+    const scoreW = Math.min(r.score || 0, 100);
+    tr.innerHTML = `
+      <td style="color:var(--muted);text-align:center">${i + 1}</td>
+      <td class="ticker-cell">${r.ticker || "-"}</td>
+      <td class="name-cell">${truncate(r.name, 24)}</td>
+      <td class="sector-cell">${truncate(r.sector, 18)}</td>
+      <td>
+        <div class="score-cell">
+          <div class="score-bar-bg"><div class="score-bar-fill" style="width:${scoreW}%;background:${scoreColor}"></div></div>
+          <span class="score-text" style="color:${scoreColor}">${(r.score||0).toFixed(0)}</span>
+        </div>
+      </td>
+      <td class="met-cell">${r.met_count ?? "-"}/${r.total_criteria ?? "-"}</td>
+      <td class="num-cell">${r.price ? "$" + r.price.toFixed(2) : '<span class="na">-</span>'}</td>
+      <td class="num-cell">${fmtCap(r.market_cap)}</td>
+      <td class="num-cell">${r.pe != null ? r.pe.toFixed(1) : '<span class="na">-</span>'}</td>
+      <td class="num-cell">${r.pb != null ? r.pb.toFixed(2) : '<span class="na">-</span>'}</td>
+      <td class="num-cell">${r.roe != null ? (r.roe*100).toFixed(1)+"%" : '<span class="na">-</span>'}</td>
+      <td class="num-cell">${r.debt_to_equity != null ? r.debt_to_equity.toFixed(1)+"%" : '<span class="na">-</span>'}</td>
+      <td class="num-cell">${r.profit_margins != null ? (r.profit_margins*100).toFixed(1)+"%" : '<span class="na">-</span>'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ---------- Detail Modal ----------
+function showDetail(r) {
+  const scoreColor = r.score >= 80 ? "#22c55e" : r.score >= 60 ? "#eab308" : "#94a3b8";
+  const criteriaRows = (r.criteria || []).map(c => {
+    const valStr = fmtCriterionVal(c.value, c.format);
+    const rangeStr = fmtRange(c.min, c.max, c.format);
+    let status;
+    if (c.reason === "데이터 없음") {
+      status = '<span class="na-label">N/A</span>';
+    } else if (c.met) {
+      status = '<span class="pass">✓ 충족</span>';
+    } else {
+      status = '<span class="fail">✗ 미충족</span>';
+    }
+    return `<tr>
+      <td>${c.name}</td>
+      <td style="text-align:right;font-family:monospace">${valStr}</td>
+      <td style="text-align:center;color:var(--muted)">${rangeStr}</td>
+      <td style="text-align:center">${status}</td>
+    </tr>`;
+  }).join("");
+
+  document.getElementById("modalContent").innerHTML = `
+    <div class="detail-ticker">${r.ticker || "-"}</div>
+    <div class="detail-name">${r.name || "-"}</div>
+    <div class="detail-meta">${r.sector || ""} ${r.industry ? "| " + r.industry : ""}</div>
+    <div class="detail-stats">
+      <div class="stat-card">
+        <div class="stat-label">현재가</div>
+        <div class="stat-value">${r.price ? "$" + r.price.toFixed(2) : "-"}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">시가총액</div>
+        <div class="stat-value">${fmtCap(r.market_cap)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">종합점수</div>
+        <div class="stat-value" style="color:${scoreColor}">${(r.score||0).toFixed(1)}점</div>
+      </div>
+    </div>
+    <h3>기준 분석 (${r.met_count ?? 0}/${r.total_criteria ?? 0} 충족)</h3>
+    <table class="criteria-table">
+      <thead><tr><th>지표</th><th style="text-align:right">현재값</th><th style="text-align:center">기준</th><th style="text-align:center">결과</th></tr></thead>
+      <tbody>${criteriaRows}</tbody>
+    </table>
+  `;
+  document.getElementById("detailModal").style.display = "flex";
+}
+
+function closeModal() {
+  document.getElementById("detailModal").style.display = "none";
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+// ---------- Formatters ----------
+function fmtCriterionVal(val, fmt) {
+  if (val === null || val === undefined) return "-";
+  if (fmt === ".1%") return (val * 100).toFixed(1) + "%";
+  if (fmt === ".2f") return val.toFixed(2);
+  if (fmt === ".1f") return val.toFixed(1);
+  if (fmt === ".0f") return val.toFixed(0) + "점";
+  return val.toString();
+}
+
+function fmtRange(min, max, fmt) {
+  const parts = [];
+  if (min != null && min !== 0) parts.push("≥ " + fmtCriterionVal(min, fmt));
+  if (max != null) parts.push("≤ " + fmtCriterionVal(max, fmt));
+  return parts.join(" & ") || "-";
+}
+
+function fmtCap(v) {
+  if (!v) return '<span class="na">-</span>';
+  if (v >= 1e12) return "$" + (v/1e12).toFixed(1) + "T";
+  if (v >= 1e9)  return "$" + (v/1e9).toFixed(1) + "B";
+  if (v >= 1e6)  return "$" + (v/1e6).toFixed(1) + "M";
+  return "$" + v;
+}
+
+function truncate(str, n) {
+  if (!str) return "-";
+  return str.length > n ? str.slice(0, n - 1) + "…" : str;
+}
+
+buildCards();
+</script>
+</body>
+</html>
